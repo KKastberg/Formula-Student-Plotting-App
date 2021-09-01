@@ -1,1 +1,0 @@
-# formula_student_recruitment
