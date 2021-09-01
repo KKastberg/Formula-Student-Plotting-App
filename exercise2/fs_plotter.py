@@ -210,11 +210,11 @@ class SettingsPage(tk.Frame):
     # Button functions:
     # Executed when cancel is pressed
     def click_cancel(self):
-        self.parent.setting_project_name_var.set(
+        self.setting_project_name_var.set(
             self.m_graph.project_name_var.get())
-        self.parent.plot_accuracy.set(self.m_graph.plot_accuracy)
-        self.parent.inner_func.set(self.parent.last_inner_func)
-        self.parent.outer_func.set(self.parent.last_outer_func)
+        self.plot_accuracy.set(self.m_graph.plot_accuracy)
+        self.inner_func.set(self.parent.last_inner_func)
+        self.outer_func.set(self.parent.last_outer_func)
         self.parent.graph_page.tkraise()
 
     def click_save(self):
@@ -405,7 +405,7 @@ class GraphPage(tk.Frame):
     def click_reset(self):
         self.m_graph.live = False
         self.m_graph.timestep = 1
-        self.m_graph.zoom = DEFAULT_ZOOM
+        self.m_graph.zoom.set(DEFAULT_ZOOM)
 
     # Executed when save is clicked
     def click_save(self):
@@ -534,7 +534,10 @@ class Graph:
     @staticmethod
     # Parses a string to lambda function
     def string_to_lambda(input_str):
-        return lambda t: eval(input_str)
+        try:
+            return lambda t: eval(input_str)
+        except:
+            print("Invalid input")
 
 
 if __name__ == '__main__':
