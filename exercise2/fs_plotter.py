@@ -213,8 +213,8 @@ class SettingsPage(tk.Frame):
         self.setting_project_name_var.set(
             self.m_graph.project_name_var.get())
         self.plot_accuracy.set(self.m_graph.plot_accuracy)
-        self.inner_func.set(self.parent.last_inner_func)
-        self.outer_func.set(self.parent.last_outer_func)
+        self.inner_func.set(self.last_inner_func)
+        self.outer_func.set(self.last_outer_func)
         self.parent.graph_page.tkraise()
 
     def click_save(self):
