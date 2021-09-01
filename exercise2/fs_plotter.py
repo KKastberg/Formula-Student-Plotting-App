@@ -17,7 +17,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib import pyplot as plt
 import matplotlib.animation as animation
 
-plt.style.use('bmh')
+plt.style.use("bmh")
 
 # Global app variables
 APP_TITLE = "Formula Student Graph Visualizer"
@@ -44,6 +44,7 @@ LIVE_LINE_COLOR = "red"
 BACKGROUND_COLOR = "#ffffff"
 MENU_COLOR = "#ececec"
 TITLE_COLOR = "#003164"
+ERROR_COLOR = "#ec0000"
 
 
 class App(tk.Tk):
@@ -109,6 +110,7 @@ class SettingsPage(tk.Frame):
                            "Outer Function h(t)", "Plotting Accuracy"]
         self.parameter_vars = [self.setting_project_name_var, self.inner_func,
                                self.outer_func, self.plot_accuracy]
+        self.entry_fields = []
 
         # Create layout
         title_frame = self.create_title_frame(self)
@@ -158,10 +160,19 @@ class SettingsPage(tk.Frame):
             param_label.grid(row=idx, column=0, stick="w",
                              padx=(20, 0), pady=(20, 0))
 
-            param_entry = ttk.Entry(frame, width=30,
-                                    textvariable=self.parameter_vars[idx])
+            param_entry = tk.Entry(frame, width=30,
+                                   textvariable=self.parameter_vars[idx])
             param_entry.grid(row=idx, column=1, stick="we",
                              padx=(10, 0), pady=(18, 0))
+            self.entry_fields.append(param_entry)
+
+        # Add a validation check for plot accuracy entries.
+        # Only allow float input
+        def float_validation(s):
+            return s.isnumeric() or s in ["."]
+        vcmd = (self.register(float_validation), "%S")
+        self.entry_fields[3]["validate"] = "key"
+        self.entry_fields[3]["validatecommand"] = vcmd
 
         return frame
 
@@ -210,33 +221,54 @@ class SettingsPage(tk.Frame):
     # Button functions:
     # Executed when cancel is pressed
     def click_cancel(self):
+        # Update graph settings
         self.setting_project_name_var.set(
             self.m_graph.project_name_var.get())
         self.plot_accuracy.set(self.m_graph.plot_accuracy)
         self.inner_func.set(self.last_inner_func)
         self.outer_func.set(self.last_outer_func)
+
+        # Reset entry field colors
+        self.color_entry_fields([True, True, True, True])
+
+        # Change back to graph page
         self.parent.graph_page.tkraise()
 
+    # Executed when save is pressed
     def click_save(self):
-        # Using "try-except" to parse values to detect invalid values.
-        # However this does not catch most invalid values.
-        # An improvment would be to add a validation check which
-        # ensures valid values are entered
-        try:
+        # Test if the values in the func entry fields are valid
+        parsed_inner_func = self.m_graph.string_to_lambda(
+                                        self.inner_func.get())
+        parsed_outer_func = self.m_graph.string_to_lambda(
+                                        self.outer_func.get())
+
+        if parsed_inner_func and parsed_outer_func:
+            # Update graph settings
             self.m_graph.project_name_var.set(
                 self.setting_project_name_var.get())
-            self.m_graph.inner_func = \
-                self.m_graph.string_to_lambda(self.inner_func.get())
-            self.m_graph.outer_func = \
-                self.m_graph.string_to_lambda(self.outer_func.get())
+            self.m_graph.inner_func = parsed_inner_func
+            self.m_graph.outer_func = parsed_outer_func
             self.last_inner_func = self.inner_func.get()
             self.last_outer_func = self.outer_func.get()
             self.m_graph.vectorize_functions()
             self.m_graph.plot_accuracy = \
                 float(self.plot_accuracy.get())
+
+            # Reset entry field colors
+            self.color_entry_fields([True, True, True, True])
+
+            # Change to graph page
             self.parent.graph_page.tkraise()
-        except:
-            print("Invalid params")
+
+        else:
+            # If invalid func mark the field red
+            self.color_entry_fields([True, parsed_inner_func,
+                                     parsed_outer_func, True])
+
+    # Change color of entry fields between background color and error color
+    def color_entry_fields(self, states):
+        for (field, state) in zip(self.entry_fields, states):
+            field["bg"] = BACKGROUND_COLOR if state else ERROR_COLOR
 
 
 class GraphPage(tk.Frame):
@@ -326,17 +358,24 @@ class GraphPage(tk.Frame):
         settings_image = settings_image.resize((12, 12), Image.ANTIALIAS)
         settings_logo = ImageTk.PhotoImage(settings_image)
 
-        settings_button = ttk.Button(frame, command=self.click_settings, width=.2,
-                                     image=settings_logo)
+        settings_button = ttk.Button(frame, command=self.click_settings,
+                                     width=.2, image=settings_logo)
         settings_button.grid(column=n, row=0, sticky="NSWE", padx=(0, 0))
         settings_button.image = settings_logo
         n += 1
 
-        # Create frequency entry
-        # (ATM there is no entry validation of the entry input.
-        # Instead only parsed when input is float)
-        freq_entry = ttk.Entry(frame, width=2,
-                               textvariable=self.freq_var)
+        # Create frequency entry:
+        # Validtation check for entry
+        # Return true if the input is an integer shorter than three digits
+        def freq_validation(s, p):
+            return s.isnumeric() and len(p) < 3
+
+        freq_vcmd = (self.parent.register(freq_validation), "%S", "%P")
+
+        # Tkinter Entry component
+        freq_entry = ttk.Entry(frame, width=2, validate="key",
+                               textvariable=self.freq_var,
+                               validatecommand=freq_vcmd)
         freq_entry.grid(column=n, row=0, sticky="NSWE", padx=(0, 0))
         n += 1
 
@@ -416,6 +455,7 @@ class Graph:
     """
     The Graph class makes upp the graph and owns all graph related variables
     """
+
     def __init__(self, parent):
         self.parent = parent
 
@@ -535,11 +575,15 @@ class Graph:
     # Parses a string to lambda function
     def string_to_lambda(input_str):
         try:
-            return lambda t: eval(input_str)
-        except:
-            print("Invalid input")
+            l_func = lambda t: eval(input_str)
+            l_func(1)   # Test if func works
+            return l_func
+
+        # If func is invalid return false
+        except SyntaxError:
+            return False
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = App()
     app.mainloop()
