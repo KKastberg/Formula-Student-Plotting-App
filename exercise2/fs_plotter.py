@@ -3,20 +3,20 @@
 # MISC
 import numpy as np
 from PIL import ImageTk, Image
+import csv
 from math import *  # required for easy parsing of new function inputs
 
 # Tkinter
 import tkinter as tk
 import tkinter.ttk as ttk
 import tkinter.font as tfont
-from tkinter.filedialog import asksaveasfile
+from tkinter.filedialog import asksaveasfilename
 
 # Matplotlib
 import tikzplotlib
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib import pyplot as plt
 import matplotlib.animation as animation
-
 plt.style.use("bmh")
 
 # Global app variables
@@ -417,10 +417,16 @@ class GraphPage(tk.Frame):
         grid_check_button.grid(column=n, row=0, sticky="NSWE", padx=(0, 0))
         n += 1
 
-        # Create Save button
-        save_button = ttk.Button(frame, text="save",
-                                 command=self.click_save, width=4)
-        save_button.grid(column=n, row=0, sticky="NSWE", padx=(3, 0))
+        # Create csv save button
+        csv_save_button = ttk.Button(frame, text="Save CSV", width=8,
+                                     command=self.m_graph.save_csv)
+        csv_save_button.grid(column=n, row=0, sticky="NSWE", padx=(3, 0))
+        n += 1
+
+        # Create latex save button
+        latex_save_button = ttk.Button(frame, text="Save LATEX", width=10,
+                                       command=self.m_graph.save_latex)
+        latex_save_button.grid(column=n, row=0, sticky="NSWE", padx=(3, 0))
         n += 1
 
         return frame
@@ -445,10 +451,6 @@ class GraphPage(tk.Frame):
         self.m_graph.live = False
         self.m_graph.timestep = 1
         self.m_graph.zoom.set(DEFAULT_ZOOM)
-
-    # Executed when save is clicked
-    def click_save(self):
-        self.m_graph.save()
 
 
 class Graph:
@@ -551,11 +553,11 @@ class Graph:
         return FigureCanvasTkAgg(self.fig, container)
 
     # Save the current plot as a tex file for usage in LATEX
-    def save(self):
+    def save_latex(self):
         # Get file save path
-        file_path = asksaveasfile(
+        file_path = asksaveasfilename(
             initialfile=self.project_name_var.get() + ".tex",
-            defaultextension=".tex", filetypes=[("Tex Files", "*.tex")])
+            filetypes=[("Tex Files", ".tex")])
 
         if file_path:
             # Remove titles to make latex graph cleaner
@@ -564,7 +566,31 @@ class Graph:
 
             # Save
             tikzplotlib.clean_figure()
-            tikzplotlib.save(file_path.name)
+            tikzplotlib.save(file_path)
+
+    # Generate a CSV file from graph data
+    def save_csv(self):
+        # Get file save path
+        file_path = asksaveasfilename(
+            initialfile=self.project_name_var.get() + ".csv",
+            filetypes=[("CSV Files", "*.csv")])
+
+        if file_path:
+            # Define x range
+            x_values = np.arange(0, self.zoom.get(),
+                                 self.plot_accuracy)
+
+            # Create file
+            with open(file_path, 'w', newline='') as file:
+                writer = csv.writer(file)
+
+                # Write column titles
+                writer.writerow(["t", "h(t)", "lambda(t)", "h(lambda(t))"])
+
+                # Write data
+                for v in x_values:
+                    writer.writerow([v, self.outer_func(v), self.inner_func(v),
+                                     self.outer_func(self.inner_func(v))])
 
     # Vectorice the lambda functions to be able to create x ranges
     def vectorize_functions(self):
