@@ -440,6 +440,7 @@ class GraphPage(tk.Frame):
 
     # Executed when settings is clicked
     def click_settings(self):
+        self.m_graph.playing = False
         self.parent.setting_page.tkraise()
 
     # Executed when stop is clicked
